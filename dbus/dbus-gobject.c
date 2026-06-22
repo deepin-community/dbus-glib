@@ -102,7 +102,7 @@ typedef struct
   GType code_enum;
 } DBusGErrorInfo;
 
-static GStaticRWLock globals_lock = G_STATIC_RW_LOCK_INIT;
+static GRWLock globals_lock;
 /* See comments in check_property_access */
 static gboolean disable_legacy_property_access = FALSE;
 static GData *error_metadata = NULL;
@@ -653,7 +653,7 @@ object_export_unregister_all (ObjectExport *oe)
 {
   while (oe->registrations != NULL)
     {
-      GSList *old = oe->registrations;
+      G_GNUC_UNUSED /* if assertions are disabled */ GSList *old = oe->registrations;
       ObjectRegistration *o = oe->registrations->data;
 
       dbus_connection_unregister_object_path (
@@ -1477,14 +1477,14 @@ gerror_domaincode_to_dbus_error_name (const DBusGObjectInfo *object_info,
     {
       DBusGErrorInfo *info;
 
-      g_static_rw_lock_reader_lock (&globals_lock);
+      g_rw_lock_reader_lock (&globals_lock);
 
       if (error_metadata != NULL)
 	info = g_datalist_id_get_data (&error_metadata, domain);
       else
 	info = NULL;
 
-      g_static_rw_lock_reader_unlock (&globals_lock);
+      g_rw_lock_reader_unlock (&globals_lock);
 
       if (info)
 	{
@@ -1800,9 +1800,11 @@ invoke_object_method (GObject         *object,
   }
 
   /* Prepend object as first argument */ 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   g_value_array_prepend (value_array, NULL);
   g_value_init (g_value_array_get_nth (value_array, 0), G_TYPE_OBJECT);
   g_value_set_object (g_value_array_get_nth (value_array, 0), object);
+  G_GNUC_END_IGNORE_DEPRECATIONS
   
   if (is_async)
     {
@@ -1816,7 +1818,9 @@ invoke_object_method (GObject         *object,
       context->send_reply = send_reply;
       g_value_init (&context_value, G_TYPE_POINTER);
       g_value_set_pointer (&context_value, context);
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_append (value_array, &context_value);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
   else
     {
@@ -1892,7 +1896,9 @@ invoke_object_method (GObject         *object,
       /* We have a special array of GValues for toplevel GValue return
        * types.
        */
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       out_param_gvalues = g_value_array_new (out_param_count);
+      G_GNUC_END_IGNORE_DEPRECATIONS
       out_param_pos = 0;
       out_param_gvalue_pos = 0;
 
@@ -1929,11 +1935,15 @@ invoke_object_method (GObject         *object,
 	    }
 	  else
 	    {
+	      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 	      g_value_array_append (out_param_gvalues, NULL);
+	      G_GNUC_END_IGNORE_DEPRECATIONS
 	      g_value_set_pointer (&value, out_param_gvalues->values + out_param_gvalue_pos);
 	      out_param_gvalue_pos++;
 	    }
+	  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 	  g_value_array_append (value_array, &value);
+	  G_GNUC_END_IGNORE_DEPRECATIONS
 	}
     }
 
@@ -1941,9 +1951,11 @@ invoke_object_method (GObject         *object,
   if (retval_signals_error)
     {
       g_assert (have_retval);
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_append (value_array, NULL);
       g_value_init (g_value_array_get_nth (value_array, value_array->n_values - 1), G_TYPE_POINTER);
       g_value_set_pointer (g_value_array_get_nth (value_array, value_array->n_values - 1), &gerror);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
   
   /* Actually invoke method */
@@ -2084,13 +2096,17 @@ done:
   if (!is_async)
     {
       g_array_free (out_param_values, TRUE);
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (out_param_gvalues);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   if (gerror != NULL)
     g_clear_error (&gerror);
 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   g_value_array_free (value_array);
+  G_GNUC_END_IGNORE_DEPRECATIONS
   return DBUS_HANDLER_RESULT_HANDLED;
 }
 
@@ -2750,7 +2766,7 @@ dbus_g_error_domain_register (GQuark                domain,
   g_return_if_fail (code_enum != G_TYPE_INVALID);
   g_return_if_fail (G_TYPE_FUNDAMENTAL (code_enum) == G_TYPE_ENUM);
 
-  g_static_rw_lock_writer_lock (&globals_lock);
+  g_rw_lock_writer_lock (&globals_lock);
 
   if (error_metadata == NULL)
     g_datalist_init (&error_metadata);
@@ -2774,7 +2790,7 @@ dbus_g_error_domain_register (GQuark                domain,
 				   dbus_g_error_info_free);
     }
 
-  g_static_rw_lock_writer_unlock (&globals_lock);
+  g_rw_lock_writer_unlock (&globals_lock);
 }
 
 /* Called when the object is destroyed */

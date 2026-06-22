@@ -1,3 +1,45 @@
+dbus-glib (0.114-1) unstable; urgency=medium
+
+  * New upstream release
+    - Compiles successfully with gcc-15 (Closes: #1096507)
+  * d/salsa-ci.yml: Use recommended recipe
+  * Drop patch, applied upstream
+  * Standards-Version: 4.7.2 (no changes required)
+
+ -- Simon McVittie <smcv@debian.org>  Thu, 13 Mar 2025 18:50:41 +0000
+
+dbus-glib (0.112-4) unstable; urgency=medium
+
+  * d/rules: Fix regeneration of gtk-doc documentation.
+    This was intended to be enabled if and only if the -doc package is
+    being built, but in fact it was never enabled, causing the build of
+    the -doc package to fail when built twice in a row (which had the
+    side-effect of deleting the prebuilt documentation).
+    (Closes: #1049544)
+  * d/upstream/metadata: Add Security-Contact field
+  * Standards-Version: 4.7.0 (no changes required)
+  * d/p/dbus-binding-tool-1-Avoid-a-groff-warning.patch:
+    Avoid a groff(1) warning
+
+ -- Simon McVittie <smcv@debian.org>  Tue, 12 Nov 2024 11:38:36 +0000
+
+dbus-glib (0.112-3) unstable; urgency=medium
+
+  [ Debian Janitor ]
+  * Remove version constraints unnecessary since buster (oldstable)
+
+  [ Simon McVittie ]
+  * Build/test-depend on dbus-daemon instead of dbus.
+    We need dbus-run-session, not a full D-Bus system bus.
+  * d/upstream/metadata: Update Gitlab URLs
+  * Update standards version to 4.6.1 (no changes needed)
+  * Remove unnecessary Lintian override now that #970275 was fixed
+  * Bump debhelper compat level from 12 to recommended 13
+    - debian/rules: Drop --fail-missing argument to dh_missing, which
+      is now the default.
+
+ -- Simon McVittie <smcv@debian.org>  Sun, 13 Nov 2022 18:54:29 +0000
+
 dbus-glib (0.112-2) unstable; urgency=medium
 
   * Release to unstable

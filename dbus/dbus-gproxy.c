@@ -137,7 +137,7 @@ typedef struct
  */
 struct _DBusGProxyManager
 {
-  GStaticMutex lock; /**< Thread lock */
+  GMutex lock; /**< Thread lock */
   int refcount;      /**< Reference count */
   DBusConnection *connection; /**< Connection we're associated with. */
 
@@ -169,14 +169,14 @@ static DBusHandlerResult  dbus_g_proxy_manager_filter (DBusConnection    *connec
 
 
 /** Lock the DBusGProxyManager */
-#define LOCK_MANAGER(mgr)   (g_static_mutex_lock (&(mgr)->lock))
+#define LOCK_MANAGER(mgr)   (g_mutex_lock (&(mgr)->lock))
 /** Unlock the DBusGProxyManager */
-#define UNLOCK_MANAGER(mgr) (g_static_mutex_unlock (&(mgr)->lock))
+#define UNLOCK_MANAGER(mgr) (g_mutex_unlock (&(mgr)->lock))
 
 static int g_proxy_manager_slot = -1;
 
 /* Lock controlling get/set manager as data on each connection */
-static GStaticMutex connection_g_proxy_lock = G_STATIC_MUTEX_INIT;
+static GMutex connection_g_proxy_lock;
 
 static DBusGProxyManager*
 dbus_g_proxy_manager_get (DBusConnection *connection)
@@ -187,14 +187,14 @@ dbus_g_proxy_manager_get (DBusConnection *connection)
   if (g_proxy_manager_slot < 0)
     g_error ("out of memory");
   
-  g_static_mutex_lock (&connection_g_proxy_lock);
+  g_mutex_lock (&connection_g_proxy_lock);
   
   manager = dbus_connection_get_data (connection, g_proxy_manager_slot);
   if (manager != NULL)
     {
       dbus_connection_free_data_slot (&g_proxy_manager_slot);
       dbus_g_proxy_manager_ref (manager);
-      g_static_mutex_unlock (&connection_g_proxy_lock);
+      g_mutex_unlock (&connection_g_proxy_lock);
       return manager;
     }
   
@@ -203,7 +203,7 @@ dbus_g_proxy_manager_get (DBusConnection *connection)
   manager->refcount = 1;
   manager->connection = connection;
 
-  g_static_mutex_init (&manager->lock);
+  g_mutex_init (&manager->lock);
 
   /* Proxy managers keep the connection alive, which means that
    * DBusGProxy indirectly does. To free a connection you have to free
@@ -217,7 +217,7 @@ dbus_g_proxy_manager_get (DBusConnection *connection)
   dbus_connection_add_filter (connection, dbus_g_proxy_manager_filter,
                               manager, NULL);
   
-  g_static_mutex_unlock (&connection_g_proxy_lock);
+  g_mutex_unlock (&connection_g_proxy_lock);
   
   return manager;
 }
@@ -287,9 +287,9 @@ dbus_g_proxy_manager_unref (DBusGProxyManager *manager)
 
       g_assert (manager->unassociated_proxies == NULL);
       
-      g_static_mutex_free (&manager->lock);
+      g_mutex_clear (&manager->lock);
 
-      g_static_mutex_lock (&connection_g_proxy_lock);
+      g_mutex_lock (&connection_g_proxy_lock);
 
       dbus_connection_remove_filter (manager->connection, dbus_g_proxy_manager_filter,
                                      manager);
@@ -298,7 +298,7 @@ dbus_g_proxy_manager_unref (DBusGProxyManager *manager)
                                 g_proxy_manager_slot,
                                 NULL, NULL);
 
-      g_static_mutex_unlock (&connection_g_proxy_lock);
+      g_mutex_unlock (&connection_g_proxy_lock);
       
       dbus_connection_unref (manager->connection);
       g_free (manager);
@@ -626,7 +626,7 @@ dbus_g_proxy_manager_unmonitor_name_owner (DBusGProxyManager  *manager,
 {
   DBusGProxyNameOwnerInfo *info;
   const char *owner;
-  gboolean ret;
+  G_GNUC_UNUSED /* if assertions are disabled */ gboolean ret;
 
   ret = dbus_g_proxy_manager_lookup_name_owner (manager, name, &info, &owner);
   g_assert (ret);
@@ -1737,14 +1737,18 @@ marshal_dbus_message_to_g_marshaller (GClosure     *closure,
   if (value_array == NULL)
     return;
   
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   g_value_array_prepend (value_array, NULL);
   g_value_init (g_value_array_get_nth (value_array, 0), G_TYPE_FROM_INSTANCE (proxy));
   g_value_set_instance (g_value_array_get_nth (value_array, 0), proxy);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 
   g_cclosure_marshal_generic (closure, return_value, value_array->n_values,
       value_array->values, invocation_hint, marshal_data);
 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   g_value_array_free (value_array);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 static void
@@ -1861,6 +1865,7 @@ d_pending_call_free (void *data)
 
 #define DBUS_G_VALUE_ARRAY_COLLECT_ALL(VALARRAY, FIRST_ARG_TYPE, ARGS) \
 G_STMT_START { \
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS \
   GType valtype; \
   guint i = 0; \
   \
@@ -1891,6 +1896,7 @@ G_STMT_START { \
       valtype = va_arg (ARGS, GType); \
       i++; \
     } \
+  G_GNUC_END_IGNORE_DEPRECATIONS \
 } G_STMT_END
 
 DBusGProxyCall *
@@ -1927,7 +1933,9 @@ manager_begin_bus_call (DBusGProxyManager    *manager,
       call_id = dbus_g_proxy_begin_call_internal (manager->bus_proxy, method,
           notify, user_data, destroy, arg_values, -1);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (arg_values);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   va_end (args);
@@ -2331,7 +2339,9 @@ dbus_g_proxy_marshal_args_to_message (DBusGProxy  *proxy,
     {
       GValue *gvalue;
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       gvalue = g_value_array_get_nth (args, i);
+      G_GNUC_END_IGNORE_DEPRECATIONS
 
       if (!_dbus_gvalue_marshal (&msgiter, gvalue))
         {
@@ -2641,7 +2651,9 @@ dbus_g_proxy_begin_call (DBusGProxy          *proxy,
       call_id = dbus_g_proxy_begin_call_internal (proxy, method, notify,
           user_data, destroy, arg_values, priv->default_timeout);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (arg_values);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   va_end (args);
@@ -2709,7 +2721,9 @@ dbus_g_proxy_begin_call_with_timeout (DBusGProxy          *proxy,
       call_id = dbus_g_proxy_begin_call_internal (proxy, method, notify,
           user_data, destroy, arg_values, timeout);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (arg_values);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   va_end (args);
@@ -2818,7 +2832,9 @@ dbus_g_proxy_call (DBusGProxy        *proxy,
       call_id = dbus_g_proxy_begin_call_internal (proxy, method, NULL, NULL,
           NULL, in_args, priv->default_timeout);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (in_args);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   first_arg_type = va_arg (args, GType);
@@ -2881,7 +2897,9 @@ dbus_g_proxy_call_with_timeout (DBusGProxy        *proxy,
       call_id = dbus_g_proxy_begin_call_internal (proxy, method, NULL, NULL,
           NULL, in_args, timeout);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (in_args);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   first_arg_type = va_arg (args, GType);
@@ -2938,7 +2956,9 @@ dbus_g_proxy_call_no_reply (DBusGProxy               *proxy,
     {
       message = dbus_g_proxy_marshal_args_to_message (proxy, method, in_args);
 
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_free (in_args);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
 
   va_end (args);
