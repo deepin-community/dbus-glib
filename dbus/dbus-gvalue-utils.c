@@ -84,7 +84,7 @@ _dbus_gvalue_store (GValue          *value,
   switch (g_type_fundamental (G_VALUE_TYPE (value)))
     {
     case G_TYPE_CHAR:
-      *((gchar *) storage) = g_value_get_char (value);
+      *((gchar *) storage) = g_value_get_schar (value);
       return TRUE;
     case G_TYPE_UCHAR:
       *((guchar *) storage) = g_value_get_uchar (value);
@@ -135,7 +135,7 @@ _dbus_gvalue_set_from_pointer (GValue          *value,
   switch (g_type_fundamental (G_VALUE_TYPE (value)))
     {
     case G_TYPE_CHAR:
-      g_value_set_char (value, *((gchar *) storage));
+      g_value_set_schar (value, *((gchar *) storage));
       return TRUE;
     case G_TYPE_UCHAR:
       g_value_set_uchar (value, *((guchar *) storage));
@@ -298,6 +298,14 @@ unset_and_free_g_value (gpointer val)
 static gboolean
 gtype_can_simple_free (GType type);
 
+static GType
+deprecated_value_array_type (void)
+{
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+  return g_value_array_get_type ();
+  G_GNUC_END_IGNORE_DEPRECATIONS
+}
+
 static gboolean
 hash_simple_free_from_gtype (GType gtype, GDestroyNotify *func)
 {
@@ -320,9 +328,11 @@ hash_simple_free_from_gtype (GType gtype, GDestroyNotify *func)
 	  *func = unset_and_free_g_value;
 	  return TRUE;
 	}
-      else if (gtype == G_TYPE_VALUE_ARRAY)
+      else if (gtype == deprecated_value_array_type ())
         {
+          G_GNUC_BEGIN_IGNORE_DEPRECATIONS
           *func = (GDestroyNotify) g_value_array_free;
+          G_GNUC_END_IGNORE_DEPRECATIONS
           return TRUE;
         }
       else if (gtype == G_TYPE_STRV)
@@ -425,8 +435,8 @@ _dbus_gtype_is_valid_hash_value (GType gtype)
 GHashFunc
 _dbus_g_hash_func_from_gtype (GType gtype)
 {
-  GHashFunc func;
-  gboolean ret;
+  GHashFunc func = NULL;
+  G_GNUC_UNUSED /* if assertions are disabled */ gboolean ret;
   ret = hash_func_from_gtype (gtype, &func);
   g_assert (ret != FALSE);
   return func;
@@ -507,7 +517,7 @@ gvalue_take_hash_value (GValue *value, gpointer instance)
   switch (g_type_fundamental (G_VALUE_TYPE (value)))
     {
     case G_TYPE_CHAR:
-      g_value_set_char (value, (gchar) GPOINTER_TO_INT (instance));
+      g_value_set_schar (value, (gchar) GPOINTER_TO_INT (instance));
       break;
     case G_TYPE_UCHAR:
       g_value_set_uchar (value, (guchar) GPOINTER_TO_UINT (instance));
@@ -538,7 +548,7 @@ hash_value_from_gvalue (GValue *value)
   switch (g_type_fundamental (G_VALUE_TYPE (value)))
     {
     case G_TYPE_CHAR:
-      return GINT_TO_POINTER ((int) g_value_get_char (value));
+      return GINT_TO_POINTER ((int) g_value_get_schar (value));
       break;
     case G_TYPE_UCHAR:
       return GUINT_TO_POINTER ((guint) g_value_get_uchar (value));
@@ -770,12 +780,16 @@ valuearray_constructor (GType type)
   GValueArray *ret;
   guint size = dbus_g_type_get_struct_size (type);
   guint i;
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   ret = g_value_array_new (size);
+  G_GNUC_END_IGNORE_DEPRECATIONS
   for (i=0; i < size; i++)
     {
       GValue val = {0,};
       g_value_init (&val, dbus_g_type_get_struct_member_type (type, i));
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       g_value_array_append(ret, &val);
+      G_GNUC_END_IGNORE_DEPRECATIONS
     }
   return (gpointer)ret;
 }
@@ -783,13 +797,17 @@ valuearray_constructor (GType type)
 static gpointer
 valuearray_copy (GType type, gpointer src)
 {
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   return g_value_array_copy ((GValueArray*) src);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 static void
 valuearray_simple_free (gpointer val)
 {
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   g_value_array_free (val);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 static gboolean
@@ -800,7 +818,9 @@ valuearray_get_member (GType type, gpointer instance,
   const GValue *val;
   if (member < dbus_g_type_get_struct_size (type))
     {
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       val = g_value_array_get_nth (va, member);
+      G_GNUC_END_IGNORE_DEPRECATIONS
       g_value_copy (val, ret);
       return TRUE;
     }
@@ -816,7 +836,9 @@ valuearray_set_member (GType type, gpointer instance,
   GValue *vp;
   if (member < dbus_g_type_get_struct_size (type))
     {
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
       vp = g_value_array_get_nth (va, member);
+      G_GNUC_END_IGNORE_DEPRECATIONS
       g_value_copy (member_type, vp);
       return TRUE;
     }
@@ -881,7 +903,7 @@ array_iterator (GType garray_type,
             break;
 
           case G_TYPE_CHAR:
-            g_value_set_char (&val, g_array_index (array, gchar, i));
+            g_value_set_schar (&val, g_array_index (array, gchar, i));
             break;
 
           case G_TYPE_UCHAR:
@@ -961,7 +983,7 @@ array_append (DBusGTypeSpecializedAppendContext *ctx,
         break;
 
       case G_TYPE_CHAR:
-        tmp.c = g_value_get_char (value);
+        tmp.c = g_value_get_schar (value);
         g_array_append_val (array, tmp.c);
         break;
 

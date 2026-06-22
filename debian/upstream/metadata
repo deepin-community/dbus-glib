@@ -1,4 +1,5 @@
-Bug-Database: https://gitlab.freedesktop.org/dbus/dbus-glib/issues
-Bug-Submit: https://gitlab.freedesktop.org/dbus/dbus-glib/issues/new
+Bug-Database: https://gitlab.freedesktop.org/dbus/dbus-glib/-/issues
+Bug-Submit: https://gitlab.freedesktop.org/dbus/dbus-glib/-/issues/new
 Repository-Browse: https://gitlab.freedesktop.org/dbus/dbus-glib
 Repository: https://gitlab.freedesktop.org/dbus/dbus-glib.git
+Security-Contact: mailto:dbus-security@lists.freedesktop.org

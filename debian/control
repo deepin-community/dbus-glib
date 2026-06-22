@@ -8,17 +8,17 @@ Uploaders:
  Simon McVittie <smcv@debian.org>,
  Michael Biebl <biebl@debian.org>,
 Build-Depends:
- dbus (>= 1.8) <!nocheck>,
- debhelper-compat (= 12),
- gtk-doc-tools (>= 1.4),
- libdbus-1-dev (>= 1.8),
+ dbus-daemon <!nocheck>,
+ debhelper-compat (= 13),
+ gtk-doc-tools,
+ libdbus-1-dev,
  libdbus-glib-1-dev-bin <cross>,
  libexpat-dev,
- libglib2.0-dev (>= 2.40),
+ libglib2.0-dev,
 Build-Depends-Indep:
  libglib2.0-doc,
 Rules-Requires-Root: no
-Standards-Version: 4.5.1
+Standards-Version: 4.7.2
 Vcs-Git: https://salsa.debian.org/debian/dbus-glib.git
 Vcs-Browser: https://salsa.debian.org/debian/dbus-glib
 Homepage: https://www.freedesktop.org/wiki/Software/DBusBindings
@@ -50,7 +50,7 @@ Multi-Arch: same
 Pre-Depends:
  ${misc:Pre-Depends},
 Depends:
- libdbus-1-dev (>= 1.1),
+ libdbus-1-dev,
  libdbus-glib-1-2 (= ${binary:Version}),
  libdbus-glib-1-dev-bin (= ${binary:Version}),
  libglib2.0-dev,
@@ -75,8 +75,6 @@ Pre-Depends:
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
-Breaks: libdbus-glib-1-dev (<< 0.110-3~)
-Replaces: libdbus-glib-1-dev (<< 0.110-3~)
 Description: deprecated library for D-Bus IPC (development tools)
  D-Bus is a message bus, used for sending messages between applications.
  Conceptually, it fits somewhere in between raw sockets and CORBA in
@@ -99,10 +97,6 @@ Pre-Depends:
 Depends:
  lynx | www-browser,
  ${misc:Depends},
-Breaks:
- libdbus-glib-1-dev (<< 0.110),
-Replaces:
- libdbus-glib-1-dev (<< 0.110),
 Suggests:
  devhelp,
 Description: deprecated library for D-Bus IPC (API documentation)
